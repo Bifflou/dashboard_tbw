@@ -45,7 +45,8 @@ jobs:
         run: python -m scripts.build_index
 
       - name: Commit and push data
-        run: bash scripts/commit_data.sh "chore(data): daily update $(date -u '+%Y-%m-%d')"
+        run: |
+          bash scripts/commit_data.sh "chore(data): daily update $(date -u '+%Y-%m-%d')"
 
       - name: Notify Discord
         if: always()

@@ -54,7 +54,8 @@ jobs:
         run: python -m scripts.build_index
 
       - name: Commit and push data
-        run: bash scripts/commit_data.sh "chore(data): initialize ${{ inputs.project || 'pending lines' }}"
+        run: |
+          bash scripts/commit_data.sh "chore(data): initialize ${{ inputs.project || 'pending lines' }}"
 
       - name: Notify Discord
         if: always()
