@@ -354,7 +354,12 @@ Pas d'agrégateurs (DeFiLlama, rwa.xyz…) dans le pipeline : ils servent seulem
   par adresse.
 - *2026-11-23 — Solana* : le RPC public refuse les lectures en volume (HTTP 429 dès quelques requêtes groupées).
   EURCV sur Solana compte ~25 000 transactions (pools de DEX) : l'initialisation passe par Helius et prend de
-  l'ordre de l'heure ; les mises à jour quotidiennes sont légères.
+  l'ordre de l'heure ; les mises à jour quotidiennes sont légères. Sans clé Helius, une ligne qui demande plus de
+  4 000 transactions échoue tout de suite (au rythme du RPC public, EURCV aurait pris plus de 4 h et bloqué le
+  workflow).
+- *2026-11-23 — Solana, réponses vides* : un nœud RPC répond parfois `null` à `getTransaction` pour une transaction
+  pourtant listée par `getSignaturesForAddress` (constaté sur EURCV). La lecture est retentée, puis demandée à
+  l'autre point d'accès, avant de mettre la ligne en erreur.
 
 Les clés vivent **uniquement** dans les secrets GitHub Actions du dépôt. Jamais dans le front, la config ou les JSON publiés.
 

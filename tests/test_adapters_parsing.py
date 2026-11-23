@@ -1,7 +1,9 @@
 """Parsing of XRPL metadata, Stellar effects and Solana token balances (no network)."""
 
 import unittest
+from unittest.mock import patch
 
+from scripts.adapters import solana
 from scripts.adapters.solana import SolanaAdapter
 from scripts.adapters.stellar import StellarAdapter
 from scripts.adapters.xrpl import RIPPLE_EPOCH, XrplAdapter, to_raw
@@ -117,6 +119,40 @@ class SolanaParsingTest(unittest.TestCase):
     def test_failed_transaction(self):
         self.adapter._rpc = lambda method, params: self.fake_tx(err={"InstructionError": [0, "Custom"]})
         self.assertIsNone(self.adapter._read_transaction("sig"))
+
+    def test_null_answer_is_asked_again(self):
+        answers = [None, None, self.fake_tx()]
+        self.adapter._rpc = lambda method, params, endpoint=None: answers.pop(0)
+        with patch.object(solana, "MISSING_TX_PAUSE", 0):
+            self.assertEqual(self.adapter._read_transaction("sig")["slot"], 42)
+        self.assertEqual(self.adapter.stats["missing_retries"], 2)
+
+    def test_null_answer_falls_back_to_the_other_endpoint(self):
+        endpoints = []
+
+        def rpc(method, params, endpoint=None):
+            endpoints.append(endpoint)
+            return self.fake_tx() if endpoint else None
+
+        self.adapter.helius = True
+        self.adapter._rpc = rpc
+        with patch.object(solana, "MISSING_TX_PAUSE", 0):
+            self.assertEqual(self.adapter._read_transaction("sig")["slot"], 42)
+        self.assertEqual(endpoints[:-1], [None] * (solana.MISSING_TX_RETRIES + 1))
+        self.assertEqual(endpoints[-1][0], solana.PUBLIC_RPC)
+
+    def test_null_answer_everywhere_fails(self):
+        self.adapter._rpc = lambda method, params, endpoint=None: None
+        with patch.object(solana, "MISSING_TX_PAUSE", 0):
+            with self.assertRaisesRegex(solana.SolanaError, "not found"):
+                self.adapter._read_transaction("sig")
+
+    def test_public_rpc_refuses_busy_tokens(self):
+        self.adapter.helius = False
+        self.adapter._rpc = lambda method, params, endpoint=None: self.fail("no read expected")
+        signatures = [f"sig{i}" for i in range(solana.MAX_PUBLIC_TRANSACTIONS + 1)]
+        with self.assertRaisesRegex(solana.SolanaError, "HELIUS_API_KEY"):
+            self.adapter._transactions(signatures)
 
 
 if __name__ == "__main__":

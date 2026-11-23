@@ -12,7 +12,10 @@ Changes are netted per slot (all transactions of a slot share a day), which also
 of transactions inside a slot. An increase is a mint to the owner, a decrease a burn from it, so the reconstructed
 supply is the sum of owner balances.
 
-RPC: Helius when HELIUS_API_KEY is set (needed for busy tokens), else the public endpoint (small tokens only).
+RPC: Helius when HELIUS_API_KEY is set (needed for busy tokens), else the public endpoint (small tokens only:
+above MAX_PUBLIC_TRANSACTIONS transactions to read, the line fails at once instead of running for hours).
+An RPC node sometimes answers `null` for a transaction it does have (archive lookup): it is asked again, then the
+other endpoint is tried, before the line fails.
 Transactions are immutable: parsed ones are cached for the process (engine retries, engine check resume).
 """
 
@@ -32,7 +35,12 @@ PUBLIC_RPC = "https://api.mainnet-beta.solana.com"
 SIGNATURE_PAGE = 1000
 HELIUS_RATE = 8.0      # requests per second (free plan allows 10)
 PUBLIC_RATE = 1.5
-WORKERS = 6
+HELIUS_WORKERS = 16    # archive reads take ~1 s: enough requests in flight to use the whole rate
+PUBLIC_WORKERS = 3
+MAX_PUBLIC_TRANSACTIONS = 4000   # ~45 min at the public rate
+MISSING_TX_RETRIES = 4           # extra reads of a transaction answered `null`, before trying the other endpoint
+MISSING_TX_PAUSE = 3.0
+PROGRESS_EVERY = 1000
 
 _TX_CACHE: dict[tuple[str, str], dict | None] = {}
 
@@ -64,11 +72,16 @@ class SolanaAdapter(Adapter):
         self.mint = line["identifier"]["mint"]
         key = os.environ.get("HELIUS_API_KEY", "").strip()
         base = chains.get_chain(self.chain_id)["solana"]["helius_rpc_url"]
+        self.helius = bool(key)
         self.url = f"{base}?api-key={key}" if key else PUBLIC_RPC
         self.limiter = _RateLimiter(HELIUS_RATE if key else PUBLIC_RATE)
+        self.workers = HELIUS_WORKERS if key else PUBLIC_WORKERS
+        self._fallback: tuple[str, _RateLimiter] | None = None
         self._program: str | None = None
         self._snapshot: dict | None = None
-        self.stats = {"token_accounts": 0, "signatures": 0, "transactions_read": 0, "cached": 0}
+        self._lock = threading.Lock()
+        self.stats = {"rpc": "helius" if key else "public", "token_accounts": 0, "signatures": 0,
+                      "transactions_read": 0, "cached": 0, "calls": 0, "throttled": 0, "missing_retries": 0}
 
     # ── Adapter interface ────────────────────────────────────────────────────
 
@@ -180,16 +193,38 @@ class SolanaAdapter(Adapter):
     def _transactions(self, signatures: list[str]) -> list[dict | None]:
         todo = [s for s in signatures if (self.mint, s) not in _TX_CACHE]
         self.stats["cached"] += len(signatures) - len(todo)
+        if not self.helius and self.stats["transactions_read"] + len(todo) > MAX_PUBLIC_TRANSACTIONS:
+            raise SolanaError(f"{self.stats['transactions_read'] + len(todo)}+ transactions to read: too many for "
+                              f"the public RPC (limit {MAX_PUBLIC_TRANSACTIONS}); set the HELIUS_API_KEY secret")
         if todo:
-            with ThreadPoolExecutor(max_workers=WORKERS) as pool:
-                for signature, parsed in zip(todo, pool.map(self._read_transaction, todo)):
+            started = time.monotonic()
+            with ThreadPoolExecutor(max_workers=self.workers) as pool:
+                for count, (signature, parsed) in enumerate(zip(todo, pool.map(self._read_transaction, todo)), 1):
                     _TX_CACHE[(self.mint, signature)] = parsed
+                    if count % PROGRESS_EVERY == 0:
+                        print(f"  solana {self.mint[:8]}: {count}/{len(todo)} transactions read "
+                              f"({count / (time.monotonic() - started):.1f}/s)", flush=True)
             self.stats["transactions_read"] += len(todo)
         return [_TX_CACHE[(self.mint, s)] for s in signatures]
 
+    def _get_transaction(self, signature: str):
+        params = [signature, {"encoding": "jsonParsed", "commitment": "finalized",
+                              "maxSupportedTransactionVersion": 0}]
+        for attempt in range(MISSING_TX_RETRIES + 1):
+            tx = self._rpc("getTransaction", params)
+            if tx:
+                return tx
+            if attempt < MISSING_TX_RETRIES:
+                self._count("missing_retries")
+                time.sleep(MISSING_TX_PAUSE * (attempt + 1))
+        # Last resort: the other endpoint (the public RPC when on Helius; there is no other one without a key).
+        if self.helius:
+            self._count("missing_retries")
+            return self._rpc("getTransaction", params, endpoint=self._public_endpoint())
+        return None
+
     def _read_transaction(self, signature: str) -> dict | None:
-        tx = self._rpc("getTransaction", [signature, {"encoding": "jsonParsed", "commitment": "finalized",
-                                                      "maxSupportedTransactionVersion": 0}])
+        tx = self._get_transaction(signature)
         if not tx:
             raise SolanaError(f"transaction {signature} not found")
         meta = tx.get("meta") or {}
@@ -216,13 +251,26 @@ class SolanaAdapter(Adapter):
 
     # ── RPC ──────────────────────────────────────────────────────────────────
 
-    def _rpc(self, method: str, params: list):
+    def _public_endpoint(self) -> tuple[str, _RateLimiter]:
+        with self._lock:
+            if self._fallback is None:
+                self._fallback = (PUBLIC_RPC, _RateLimiter(PUBLIC_RATE))
+            return self._fallback
+
+    def _count(self, key: str) -> None:
+        with self._lock:
+            self.stats[key] += 1
+
+    def _rpc(self, method: str, params: list, endpoint: tuple[str, _RateLimiter] | None = None):
+        url, limiter = endpoint or (self.url, self.limiter)
         for attempt in range(6):
-            self.limiter.wait()
+            limiter.wait()
+            self._count("calls")
             try:
-                answer = http.post_json(self.url, {"jsonrpc": "2.0", "id": 1, "method": method, "params": params},
+                answer = http.post_json(url, {"jsonrpc": "2.0", "id": 1, "method": method, "params": params},
                                         timeout=90, max_attempts=3)
             except http.HttpError as exc:
+                self._count("throttled")
                 if attempt == 5:
                     raise SolanaError(f"{method}: {exc}") from exc
                 time.sleep(2 * (attempt + 1))
@@ -230,6 +278,7 @@ class SolanaAdapter(Adapter):
             if "error" in answer:
                 code = answer["error"].get("code")
                 if code in (429, -32429, -32005, -32004) and attempt < 5:  # rate limit / node behind
+                    self._count("throttled")
                     time.sleep(2 * (attempt + 1))
                     continue
                 raise SolanaError(f"{method}: {http.redact(str(answer['error']))[:200]}")

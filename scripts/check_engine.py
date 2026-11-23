@@ -6,7 +6,9 @@ For each fixture tests/fixtures/*.json (only those whose chains have an adapter)
   3. resume check: init up to D-12, update to D-6 (twice), update to D-1 -> must equal the full init.
 
 Everything is written under tests/output/ (ignored by Git), never in data/. Results are printed as GitHub
-annotations, which can be read through the public API, plus a plain log. Exit code 1 on any error.
+annotations, which can be read through the public API, plus a plain log. GitHub keeps at most 10 annotations of each
+level per step: the notices of a fixture are grouped into one, warnings and errors stay one per problem.
+Exit code 1 on any error.
 
 Usage: python -m scripts.check_engine [fixture-name ...]
 """
@@ -29,6 +31,7 @@ SUPPLY_TOLERANCE_PCT = 0.01
 RESUME_OFFSETS = (12, 6, 6, 0)   # init at D-12, update at D-6 twice (idempotence), update at D-1
 
 errors = 0
+_notices: list[str] | None = None    # notices of the current fixture, grouped into one annotation
 
 
 def annotate(level: str, title: str, message: str) -> None:
@@ -36,7 +39,14 @@ def annotate(level: str, title: str, message: str) -> None:
     if level == "error":
         errors += 1
     print(f"[{level.upper()}] {title}: {message}", flush=True)
-    esc = message.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+    if level == "notice" and _notices is not None:
+        _notices.append(f"{title}: {message}")
+        return
+    _emit(level, title, message)
+
+
+def _emit(level: str, title: str, message: str) -> None:
+    esc =message.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
     esc_title = title.replace("%", "%25").replace(":", "%3A").replace(",", "%2C")
     print(f"::{level} title={esc_title}::{esc}", flush=True)
 
@@ -86,6 +96,17 @@ def _sources(adapter) -> str:
 
 
 def check_fixture(path) -> None:
+    global _notices
+    _notices = []
+    try:
+        _check_fixture(path)
+    finally:
+        if _notices:
+            _emit("notice", path.stem, "\n".join(_notices))
+        _notices = None
+
+
+def _check_fixture(path) -> None:
     fixture = load_json(path)
     project = fixture["project"]
     slug = project["slug"]
@@ -109,7 +130,8 @@ def check_fixture(path) -> None:
             result = engine.process_line(slug, token, line, mode="init", last_day=last_day, adapter=adapter)
         except Exception as exc:  # noqa: BLE001
             traceback.print_exc()
-            annotate("error", f"{label} init", f"{type(exc).__name__}: {exc}")
+            annotate("error", f"{label} init", f"{type(exc).__name__}: {exc}; after "
+                                               f"{time.monotonic() - started:.0f}s; sources {_sources(adapter)}")
             continue
         pipeline.save_line_status(slug, line, result)
         series = load_json(paths.line_series_file(slug, line["id"]))
