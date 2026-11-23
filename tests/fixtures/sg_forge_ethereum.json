@@ -1,0 +1,184 @@
+{
+  "description": "EURCV and USDCV on Ethereum. Test fixture only: never a project of the site (SPEC §11).",
+  "project": {
+    "schema_version": 1,
+    "slug": "fixture-sg-forge-ethereum",
+    "name": "Fixture SG Forge (Ethereum)",
+    "image": null,
+    "created_at": "2026-11-23T12:00:00Z",
+    "updated_at": "2026-11-23T12:00:00Z",
+    "tokens": [
+      {
+        "id": "eurcv",
+        "name": "EUR CoinVertible",
+        "symbol": "EURCV",
+        "logo": null,
+        "currency": "EUR",
+        "category": "stablecoin",
+        "nav_type": null,
+        "nav_source": null,
+        "launch_date": null,
+        "lines": [
+          {
+            "id": "eurcv_ethereum_415dd260",
+            "chain": "ethereum",
+            "identifier": {
+              "address": "0x5f7827fdeb7c20b443265fc2f40845b715385ff2"
+            },
+            "excluded_addresses": []
+          }
+        ]
+      },
+      {
+        "id": "usdcv",
+        "name": "USD CoinVertible",
+        "symbol": "USDCV",
+        "logo": null,
+        "currency": "USD",
+        "category": "stablecoin",
+        "nav_type": null,
+        "nav_source": null,
+        "launch_date": null,
+        "lines": [
+          {
+            "id": "usdcv_ethereum_25a04874",
+            "chain": "ethereum",
+            "identifier": {
+              "address": "0x5422374b27757da72d5265cc745ea906e0446634"
+            },
+            "excluded_addresses": []
+          }
+        ]
+      }
+    ]
+  },
+  "reference": {
+    "source": "soge dashboard data (E:/Claude/soge/data, last date 2026-11-06): marketcap.json/holders.json and usdcv_eth_*.json",
+    "lines": {
+      "eurcv_ethereum_415dd260": [
+        {
+          "date": "2023-10-27",
+          "supply": 10000000.0,
+          "holders": 1
+        },
+        {
+          "date": "2024-10-12",
+          "supply": 38661325.0,
+          "holders": 28
+        },
+        {
+          "date": "2025-02-17",
+          "supply": 41167475.0,
+          "holders": 41
+        },
+        {
+          "date": "2025-05-05",
+          "supply": 41506375.0,
+          "holders": 43
+        },
+        {
+          "date": "2025-07-18",
+          "supply": 41806375.0,
+          "holders": 55
+        },
+        {
+          "date": "2025-09-26",
+          "supply": 42295365.0,
+          "holders": 71
+        },
+        {
+          "date": "2025-11-23",
+          "supply": 44130869.0,
+          "holders": 324
+        },
+        {
+          "date": "2026-01-19",
+          "supply": 50367879.0,
+          "holders": 496
+        },
+        {
+          "date": "2026-03-17",
+          "supply": 53789656.29,
+          "holders": 1649
+        },
+        {
+          "date": "2026-05-13",
+          "supply": 70117671.07,
+          "holders": 4054
+        },
+        {
+          "date": "2026-07-09",
+          "supply": 99434203.04,
+          "holders": 5947
+        },
+        {
+          "date": "2026-09-04",
+          "supply": 133488001.67,
+          "holders": 6779
+        },
+        {
+          "date": "2026-10-31",
+          "supply": 145399603.19,
+          "holders": 7133
+        },
+        {
+          "date": "2026-11-06",
+          "supply": 147894619.71,
+          "holders": 7155
+        }
+      ],
+      "usdcv_ethereum_25a04874": [
+        {
+          "date": "2025-06-24",
+          "supply": 250.0,
+          "holders": 1
+        },
+        {
+          "date": "2025-10-30",
+          "supply": 8900300.0,
+          "holders": 75
+        },
+        {
+          "date": "2025-12-12",
+          "supply": 6481300.0,
+          "holders": 138
+        },
+        {
+          "date": "2026-01-24",
+          "supply": 8731300.0,
+          "holders": 177
+        },
+        {
+          "date": "2026-03-10",
+          "supply": 3528411.0,
+          "holders": 213
+        },
+        {
+          "date": "2026-04-23",
+          "supply": 18177796.0,
+          "holders": 255
+        },
+        {
+          "date": "2026-06-12",
+          "supply": 10611510.0,
+          "holders": 278
+        },
+        {
+          "date": "2026-08-15",
+          "supply": 10283061.0,
+          "holders": 283
+        },
+        {
+          "date": "2026-11-04",
+          "supply": 8936826.0,
+          "holders": 301
+        },
+        {
+          "date": "2026-11-06",
+          "supply": 8986826.0,
+          "holders": 304
+        }
+      ]
+    }
+  }
+}

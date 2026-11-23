@@ -1,5 +1,10 @@
-"""Repository paths. Every script resolves files from here, never from the current directory."""
+"""Repository paths. Every script resolves files from here, never from the current directory.
 
+The engine check (scripts/check_engine.py) redirects projects and data to tests/output/ with the
+DASHBOARD_PROJECTS_DIR and DASHBOARD_DATA_DIR environment variables, so fixtures never touch real data.
+"""
+
+import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -7,8 +12,8 @@ ROOT = Path(__file__).resolve().parents[2]
 CONFIG_DIR = ROOT / "config"
 CHAINS_FILE = CONFIG_DIR / "chains.json"
 
-PROJECTS_DIR = ROOT / "projects"          # written by the admin only
-DATA_DIR = ROOT / "data"
+PROJECTS_DIR = Path(os.environ.get("DASHBOARD_PROJECTS_DIR") or ROOT / "projects")  # written by the admin only
+DATA_DIR = Path(os.environ.get("DASHBOARD_DATA_DIR") or ROOT / "data")
 FX_FILE = DATA_DIR / "fx" / "rates.json"
 PROJECTS_INDEX_FILE = DATA_DIR / "projects.json"
 PROJECTS_DATA_DIR = DATA_DIR / "projects"

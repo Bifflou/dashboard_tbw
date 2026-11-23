@@ -56,6 +56,9 @@ Sur ce poste Windows, `python` est le raccourci du Microsoft Store : utiliser `p
 - Tests : `py -3.12 -m unittest discover -s tests`
 - Taux de change : `py -3.12 -m scripts.fetch_fx`
 - Scripts du pipeline : `py -3.12 -m scripts.run_init`, `py -3.12 -m scripts.run_daily`, `py -3.12 -m scripts.build_index`
+- Vérification du moteur sur données réelles : `py -3.12 -m scripts.check_engine [fixture]`. Les clés d'API ne sont
+  pas sur ce poste : ce check tourne sur GitHub (`engine-check.yml`, déclenché par le push). Résultats lisibles sans
+  token via `https://api.github.com/repos/Bifflou/dashboard_tbw/check-runs/<job_id>/annotations`.
 - Les formats de tous les fichiers JSON sont dans [docs/FORMATS.md](docs/FORMATS.md).
 
 ## Validation

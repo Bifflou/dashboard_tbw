@@ -1,5 +1,9 @@
-"""HTTP client with retries and exponential backoff on 429 / 5xx / network errors."""
+"""HTTP client with retries and exponential backoff on 429 / 5xx / network errors.
 
+Error messages never contain query strings or API keys (they end up in logs, status.json and Discord).
+"""
+
+import re
 import time
 from typing import Any
 
@@ -33,7 +37,7 @@ def request_json(
         try:
             resp = _session.request(method, url, params=params, json=json_body, timeout=timeout)
         except requests.RequestException as exc:
-            last_error = f"{type(exc).__name__}: {exc}"
+            last_error = redact(f"{type(exc).__name__}: {exc}")
         else:
             if resp.status_code in RETRY_STATUSES:
                 last_error = f"HTTP {resp.status_code}"
@@ -44,7 +48,7 @@ def request_json(
             elif resp.status_code == 404 and allow_404:
                 return None
             elif resp.status_code >= 400:
-                raise HttpError(f"{method} {_safe(url)} -> HTTP {resp.status_code}: {resp.text[:300]}")
+                raise HttpError(redact(f"{method} {_safe(url)} -> HTTP {resp.status_code}: {resp.text[:300]}"))
             else:
                 return resp.json()
         if attempt < max_attempts:
@@ -63,3 +67,11 @@ def post_json(url: str, body: Any, **kwargs: Any) -> Any:
 def _safe(url: str) -> str:
     """Drop the query string from error messages so API keys never end up in logs."""
     return url.split("?", 1)[0]
+
+
+_SECRET_RE = re.compile(r"(api[-_]?key=)[^&\s'\")]+", re.IGNORECASE)
+
+
+def redact(text: str) -> str:
+    """Mask any api key / api-key query parameter left in a message."""
+    return _SECRET_RE.sub(r"\1***", text)

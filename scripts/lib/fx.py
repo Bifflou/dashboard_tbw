@@ -147,6 +147,17 @@ def update_rates(start: date | None = None, end: date | None = None) -> tuple[di
     return data, written
 
 
+def ensure_coverage(start: date, end: date) -> dict:
+    """Return the rates, downloading only if [start, end] is not covered yet."""
+    data = load_json(FX_FILE)
+    if data and data["start"] <= fmt_day(start) and data["end"] >= fmt_day(end):
+        return data
+    data, _ = update_rates(start=start, end=max(end, last_complete_day()))
+    if data["start"] > fmt_day(start) or data["end"] < fmt_day(end):
+        raise FxError(f"FX rates do not cover {fmt_day(start)} -> {fmt_day(end)}")
+    return data
+
+
 def _check_complete(calendar: dict, start: date, end: date) -> None:
     missing = [fmt_day(d) for d in day_range(start, end) if fmt_day(d) not in calendar]
     if missing:

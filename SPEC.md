@@ -375,6 +375,10 @@ Chaque étape est validée avant de passer à la suivante.
 de test dans `tests/fixtures/`, qui pointent vers des tokens déjà suivis par `soge` et `spiko`. Les résultats vont dans
 un dossier de sortie ignoré par Git. Les fixtures ne sont **pas** des projets : elles ne passent jamais par `projects/`
 ni par `data/projects/` et n'apparaissent pas sur le site.
+Ce qui demande une clé d'API (Etherscan, Helius) tourne **sur GitHub** : le workflow `engine-check.yml` se lance à
+chaque push qui touche au moteur, utilise les secrets du dépôt, ne commite rien et publie ses résultats en annotations
+(lisibles par l'API publique de GitHub). Il vérifie aussi qu'une initialisation suivie de mises à jour donne exactement
+le même résultat qu'une initialisation complète.
 Critère principal : **sur les mêmes tokens, les chiffres doivent correspondre à ceux de `soge` et `spiko`**, aux écarts
 de méthode près (ceux-ci sont documentés).
 

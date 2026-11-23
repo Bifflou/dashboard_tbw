@@ -17,17 +17,19 @@ def load_json(path: Path, default: Any = None) -> Any:
         return json.load(f)
 
 
-def dumps(data: Any) -> str:
+def dumps(data: Any, compact: bool = False) -> str:
+    if compact:  # large data files: one line, no spaces
+        return json.dumps(data, ensure_ascii=False, separators=(",", ":")) + "\n"
     return json.dumps(data, ensure_ascii=False, indent=2, sort_keys=False) + "\n"
 
 
-def save_json(path: Path, data: Any) -> None:
+def save_json(path: Path, data: Any, compact: bool = False) -> None:
     """Write atomically (temp file + rename) so a crash never leaves a half-written file."""
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp")
     try:
         with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as f:
-            f.write(dumps(data))
+            f.write(dumps(data, compact))
         os.replace(tmp, path)
     except BaseException:
         if os.path.exists(tmp):
@@ -43,10 +45,10 @@ def _strip_volatile(data: Any) -> Any:
     return data
 
 
-def save_json_if_changed(path: Path, data: Any) -> bool:
+def save_json_if_changed(path: Path, data: Any, compact: bool = False) -> bool:
     """Write only if the content differs once timestamps are ignored. Returns True if written."""
     existing = load_json(path)
     if existing is not None and _strip_volatile(existing) == _strip_volatile(data):
         return False
-    save_json(path, data)
+    save_json(path, data, compact)
     return True

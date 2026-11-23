@@ -229,13 +229,13 @@ d'une ligne).
   "schema_version": 1,
   "slug": "my-project",
   "name": "My Project",
-  "image": "img/project.webp",
+  "image": "projects/my-project/img/project.webp",
   "generated_at": "2026-11-23T06:06:00Z",
   "last_date": "2026-11-22",
   "currencies": ["EUR", "USD"],
   "default_currency": "EUR",
   "chains": [{ "id": "ethereum", "name": "Ethereum", "logo": "assets/chains/ethereum.png" }],
-  "tokens": [{ "id": "eurx", "name": "Euro Example", "symbol": "EURX", "logo": "img/eurx.webp",
+  "tokens": [{ "id": "eurx", "name": "Euro Example", "symbol": "EURX", "logo": "projects/my-project/img/eurx.webp",
                "currency": "EUR", "category": "stablecoin", "nav_type": null,
                "lines": [{ "id": "eurx_ethereum_1a2b3c4d", "chain": "ethereum", "explorer_url": "…" }] }],
   "dates": ["2024-04-30", "…"],
@@ -249,6 +249,8 @@ d'une ligne).
 }
 ```
 
+- Les chemins d'images (`image`, `logo`) sont relatifs à la racine du site, directement utilisables par le front.
+- Une ligne dont la dernière mise à jour a échoué garde sa dernière valeur jusqu'à `last_date` (son statut est `error`).
 - `mcap` existe pour chaque devise de `currencies` (les devises de référence des tokens du projet).
 - `holders.by_chain` et `holders.total` sont dédoublonnés par chaîne ; `holders.by_token` est la somme des lignes (SPEC §4.3).
 
