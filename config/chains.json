@@ -101,6 +101,7 @@
         ],
         "logs_rpc": [
           { "url": "https://ethereum-rpc.publicnode.com", "archive": false },
+          { "url": "https://gateway.tenderly.co/public/mainnet", "archive": true },
           { "url": "https://rpc.mevblocker.io", "archive": true }
         ],
         "logs_max_range": 10000,

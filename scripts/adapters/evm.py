@@ -26,6 +26,9 @@ SELECTOR_DECIMALS = "0x313ce567"
 SELECTOR_TOTAL_SUPPLY = "0x18160ddd"
 
 RECENT_BLOCKS = 50_000     # windows closer than this to the head may use non-archive nodes
+NODE_INTERVAL = 0.4        # seconds between two calls to the same node
+NODE_ROUNDS = 3            # rounds over all nodes before falling back to Etherscan
+NODE_ROUND_PAUSES = (5, 20)
 PAGE_SIZE = 1000           # Etherscan maximum per call
 MAX_PAGES_ONE_BLOCK = 10   # only used if a single block holds more than PAGE_SIZE transfers
 ETHERSCAN_MAX_WINDOW = 1_000_000
@@ -55,6 +58,8 @@ class EvmAdapter(Adapter):
         self.logs_max_range = int(evm.get("logs_max_range", 10_000))
         self.api_key = os.environ.get("ETHERSCAN_API_KEY", "").strip()
         self._last_call = 0.0
+        self._node_last: dict[str, float] = {}
+        self._rotation = 0
         self._head: int | None = None
         self.stats = {"rpc_windows": 0, "etherscan_windows": 0, "etherscan_calls": 0, "logs": 0}
 
@@ -129,26 +134,55 @@ class EvmAdapter(Adapter):
         return logs
 
     def _rpc_logs(self, a: int, b: int, recent: bool) -> list[dict] | None:
-        """Logs of [a, b] from the first node that answers, or None if none can."""
-        query = {"address": self.address, "topics": [TRANSFER_TOPIC], "fromBlock": hex(a), "toBlock": hex(b)}
-        for provider in self.logs_rpc:
-            if not recent and not provider.get("archive"):
-                continue
-            try:
-                answer = self._post(provider["url"], {"jsonrpc": "2.0", "id": 1, "method": "eth_getLogs",
-                                                      "params": [query]}, max_attempts=3, timeout=60)
-            except http.HttpError:
-                continue
-            if isinstance(answer, dict) and isinstance(answer.get("result"), list):
-                return answer["result"]
-            message = str((answer or {}).get("error", "")).lower() if isinstance(answer, dict) else ""
-            if b > a and any(hint in message for hint in TOO_MANY_RESULTS_HINTS):
-                middle = (a + b) // 2
-                left = self._rpc_logs(a, middle, recent)
-                right = self._rpc_logs(middle + 1, b, recent) if left is not None else None
-                if left is not None and right is not None:
-                    return left + right
+        """Logs of [a, b] from the nodes, or None if none can answer.
+
+        Windows are spread over the eligible nodes in turn; each node is paced. If every node fails, wait and try
+        another round (public nodes rate-limit in bursts) before giving up to the Etherscan fallback.
+        """
+        eligible = [p for p in self.logs_rpc if recent or p.get("archive")]
+        if not eligible:
+            return None
+        for round_index in range(NODE_ROUNDS):
+            self._rotation += 1
+            for k in range(len(eligible)):
+                provider = eligible[(self._rotation + k) % len(eligible)]
+                answer = self._node_get_logs(provider["url"], a, b)
+                if isinstance(answer, list):
+                    return answer
+                if answer == "split" and b > a:
+                    middle = (a + b) // 2
+                    left = self._rpc_logs(a, middle, recent)
+                    right = self._rpc_logs(middle + 1, b, recent) if left is not None else None
+                    return left + right if left is not None and right is not None else None
+            if round_index < NODE_ROUNDS - 1:
+                time.sleep(NODE_ROUND_PAUSES[round_index])
         return None
+
+    def _node_get_logs(self, url: str, a: int, b: int) -> list[dict] | str | None:
+        """One eth_getLogs call: the logs, "split" if the node wants a smaller range, or None on failure."""
+        wait = NODE_INTERVAL - (time.monotonic() - self._node_last.get(url, 0.0))
+        if wait > 0:
+            time.sleep(wait)
+        query = {"address": self.address, "topics": [TRANSFER_TOPIC], "fromBlock": hex(a), "toBlock": hex(b)}
+        try:
+            answer = self._post(url, {"jsonrpc": "2.0", "id": 1, "method": "eth_getLogs", "params": [query]},
+                                max_attempts=2, timeout=60)
+        except http.HttpError as exc:
+            self._node_error(url, a, str(exc))
+            return None
+        finally:
+            self._node_last[url] = time.monotonic()
+        if isinstance(answer, dict) and isinstance(answer.get("result"), list):
+            return answer["result"]
+        message = str(answer.get("error", "")).lower() if isinstance(answer, dict) else str(answer)
+        self._node_error(url, a, message)
+        return "split" if any(hint in message for hint in TOO_MANY_RESULTS_HINTS) else None
+
+    def _node_error(self, url: str, block: int, message: str) -> None:
+        """Keep the last node errors for diagnostics (stats are printed by scripts/check_engine.py)."""
+        errors = self.stats.setdefault("node_errors", [])
+        errors.append(f"{url.split('//')[-1]} @{block}: {message[:120]}")
+        del errors[:-5]
 
     def _timestamps(self, logs: list[dict]) -> dict[int, int]:
         """Block -> timestamp, from the logs themselves when the source provides it."""

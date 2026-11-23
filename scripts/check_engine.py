@@ -17,6 +17,7 @@ import time
 import traceback
 from datetime import timedelta
 
+from scripts.adapters import get_adapter
 from scripts.lib import aggregate, engine, fx, paths, pipeline
 from scripts.lib.dates import last_complete_day
 from scripts.lib.jsonio import load_json
@@ -76,6 +77,13 @@ def compare_reference(series: dict, reference: list[dict]) -> tuple[str, str]:
     return level, message
 
 
+def _sources(adapter) -> str:
+    stats = getattr(adapter, "stats", None) or {}
+    text = ", ".join(f"{k}={v}" for k, v in stats.items() if k != "node_errors")
+    errors = stats.get("node_errors") or []
+    return text + (f"; last node error: {errors[-1]}" if errors else "")
+
+
 def check_fixture(path) -> None:
     fixture = load_json(path)
     project = fixture["project"]
@@ -95,8 +103,9 @@ def check_fixture(path) -> None:
     for token, line in lines:
         label = f"{name} {token['symbol']} {line['chain']}"
         started = time.monotonic()
+        adapter = get_adapter(line)
         try:
-            result = engine.process_line(slug, token, line, mode="init", last_day=last_day)
+            result = engine.process_line(slug, token, line, mode="init", last_day=last_day, adapter=adapter)
         except Exception as exc:  # noqa: BLE001
             traceback.print_exc()
             annotate("error", f"{label} init", f"{type(exc).__name__}: {exc}")
@@ -111,7 +120,7 @@ def check_fixture(path) -> None:
         annotate("warning" if result.state != "ok" else "notice", f"{label} init",
                  f"{len(series['days'])} days {series['first_date']} -> {series['last_date']}; "
                  f"last supply {last['supply']:,.2f}, holders {last['holders']}; {rec_text}; "
-                 f"{time.monotonic() - started:.0f}s")
+                 f"{time.monotonic() - started:.0f}s; sources {_sources(adapter)}")
         reference = fixture.get("reference", {}).get("lines", {}).get(line["id"])
         if reference:
             level, message = compare_reference(series, reference)

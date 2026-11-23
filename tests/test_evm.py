@@ -84,9 +84,10 @@ def make_adapter(chain: FakeChain) -> EvmAdapter:
 
 class EvmFetchTest(unittest.TestCase):
     def setUp(self):
-        patcher = mock.patch.object(evm, "RECENT_BLOCKS", RECENT_DEPTH)
-        patcher.start()
-        self.addCleanup(patcher.stop)
+        for name, value in (("RECENT_BLOCKS", RECENT_DEPTH), ("NODE_INTERVAL", 0), ("NODE_ROUND_PAUSES", (0, 0))):
+            patcher = mock.patch.object(evm, name, value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
 
     def test_history_comes_from_nodes(self):
         chain = FakeChain([150 + i * 3 for i in range(3_000)], head=12_000)
