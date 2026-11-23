@@ -76,11 +76,10 @@ def process_line(
                 raise
             print(f"  {line['id']}: {exc} (attempt {attempt}), fetching again", flush=True)
             continue
-        reconciliation = _reconcile(adapter, replay.total_raw, later, decimals) if reconcile else None
+        reconciliation = _reconcile(adapter, replay, later, decimals) if reconcile else None
         if not _mismatch(reconciliation) or attempt == FETCH_ATTEMPTS:
             break
-        print(f"  {line['id']}: supply off by {reconciliation['diff_pct']}% on attempt {attempt}, "
-              f"fetching again", flush=True)
+        print(f"  {line['id']}: {_mismatch_text(reconciliation)} on attempt {attempt}, fetching again", flush=True)
 
     days = kept_days + new_days
     now = utc_now_iso()
@@ -108,10 +107,7 @@ def process_line(
     state_label, message = "ok", None
     if _mismatch(reconciliation):
         state_label = "warning"
-        message = (
-            f"reconstructed supply {reconciliation['reconstructed']:,.2f} differs from on-chain "
-            f"{reconciliation['onchain']:,.2f} ({reconciliation['diff_pct']:.4f}%)"
-        )
+        message = _mismatch_text(reconciliation)
     return LineResult(
         line_id=line["id"],
         state=state_label,
@@ -183,7 +179,20 @@ def _replay_from_state(adapter: Adapter, line: dict, state: dict | None, series_
 
 
 def _mismatch(reconciliation: dict | None) -> bool:
-    return bool(reconciliation) and reconciliation["diff_pct"] > RECONCILIATION_TOLERANCE_PCT
+    return bool(reconciliation) and (
+        reconciliation["diff_pct"] > RECONCILIATION_TOLERANCE_PCT or reconciliation.get("balance_mismatches", 0) > 0
+    )
+
+
+def _mismatch_text(reconciliation: dict) -> str:
+    parts = []
+    if reconciliation["diff_pct"] > RECONCILIATION_TOLERANCE_PCT:
+        parts.append(f"reconstructed supply {reconciliation['reconstructed']:,.2f} differs from on-chain "
+                     f"{reconciliation['onchain']:,.2f} ({reconciliation['diff_pct']:.4f}%)")
+    if reconciliation.get("balance_mismatches"):
+        parts.append(f"{reconciliation['balance_mismatches']} address balance(s) differ from on-chain "
+                     f"(e.g. {reconciliation.get('balance_example')})")
+    return "; ".join(parts)
 
 
 class _Replay:
@@ -267,21 +276,39 @@ def truncate_periods(periods: dict, cp_date: str) -> dict:
     return truncated
 
 
-def _reconcile(adapter: Adapter, total_raw: int, later: list[Transfer], decimals: int) -> dict | None:
-    """Compare the reconstructed supply *now* (last day + today's mints/burns) with the on-chain supply."""
+def _reconcile(adapter: Adapter, replay: "_Replay", later: list[Transfer], decimals: int) -> dict | None:
+    """Compare the reconstructed state *now* (last day + transfers after it) with the chain.
+
+    Always the total supply; also every address balance when the adapter can list them cheaply.
+    """
     onchain = adapter.onchain_supply_raw()
     if onchain is None:
         return None
-    reconstructed = total_raw
+    balances = dict(replay.balances)
+    reconstructed = replay.total_raw
     for t in later:
         if t.sender is None:
             reconstructed += t.amount
+        else:
+            balances[t.sender] = balances.get(t.sender, 0) - t.amount
         if t.receiver is None:
             reconstructed -= t.amount
+        else:
+            balances[t.receiver] = balances.get(t.receiver, 0) + t.amount
     scale = 10 ** decimals
     diff_pct = abs(onchain - reconstructed) / onchain * 100 if onchain else (0.0 if reconstructed == 0 else 100.0)
-    return {
+    result = {
         "onchain": round(onchain / scale, 6),
         "reconstructed": round(reconstructed / scale, 6),
         "diff_pct": round(diff_pct, 6),
     }
+    onchain_balances = adapter.onchain_balances_raw()
+    if onchain_balances is not None:
+        ours = {a: b for a, b in balances.items() if b}
+        theirs = {a: b for a, b in onchain_balances.items() if b}
+        wrong = sorted(a for a in set(ours) | set(theirs) if ours.get(a, 0) != theirs.get(a, 0))
+        result["balance_mismatches"] = len(wrong)
+        if wrong:
+            a = wrong[0]
+            result["balance_example"] = f"{a}: {ours.get(a, 0) / scale:,.6f} vs {theirs.get(a, 0) / scale:,.6f}"
+    return result

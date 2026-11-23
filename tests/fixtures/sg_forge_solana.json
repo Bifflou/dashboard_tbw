@@ -1,0 +1,172 @@
+{
+  "description": "EURCV (Token-2022) and USDCV on Solana. Test fixture only: never a project of the site (SPEC §11).",
+  "project": {
+    "schema_version": 1,
+    "slug": "fixture-sg-forge-solana",
+    "name": "Fixture SG Forge (Solana)",
+    "image": null,
+    "created_at": "2026-11-23T15:00:00Z",
+    "updated_at": "2026-11-23T15:00:00Z",
+    "tokens": [
+      {
+        "id": "eurcv",
+        "name": "EUR CoinVertible",
+        "symbol": "EURCV",
+        "logo": null,
+        "currency": "EUR",
+        "category": "stablecoin",
+        "nav_type": null,
+        "nav_source": null,
+        "launch_date": null,
+        "lines": [
+          {
+            "id": "eurcv_solana_cb64bfc7",
+            "chain": "solana",
+            "identifier": {
+              "mint": "DghpMkatCiUsofbTmid3M3kAbDTPqDwKiYHnudXeGG52"
+            },
+            "excluded_addresses": []
+          }
+        ]
+      },
+      {
+        "id": "usdcv",
+        "name": "USD CoinVertible",
+        "symbol": "USDCV",
+        "logo": null,
+        "currency": "USD",
+        "category": "stablecoin",
+        "nav_type": null,
+        "nav_source": null,
+        "launch_date": null,
+        "lines": [
+          {
+            "id": "usdcv_solana_05ce0103",
+            "chain": "solana",
+            "identifier": {
+              "mint": "8smindLdDuySY6i2bStQX9o8DVhALCXCMbNxD98unx35"
+            },
+            "excluded_addresses": []
+          }
+        ]
+      }
+    ]
+  },
+  "reference": {
+    "source": "soge sol_marketcap.json and usdcv_sol_marketcap.json (supply only: soge's Solana holders were the first-seen dates of current holders). Its partial last day (2026-11-06) is left out.",
+    "lines": {
+      "eurcv_solana_cb64bfc7": [
+        {
+          "date": "2025-06-20",
+          "supply": 100.0
+        },
+        {
+          "date": "2026-06-02",
+          "supply": 10574610.85
+        },
+        {
+          "date": "2026-06-19",
+          "supply": 5899266.58
+        },
+        {
+          "date": "2026-07-06",
+          "supply": 5955091.65
+        },
+        {
+          "date": "2026-07-23",
+          "supply": 1036227.59
+        },
+        {
+          "date": "2026-08-09",
+          "supply": 1069646.59
+        },
+        {
+          "date": "2026-08-26",
+          "supply": 2352548.34
+        },
+        {
+          "date": "2026-09-12",
+          "supply": 2349011.67
+        },
+        {
+          "date": "2026-09-29",
+          "supply": 2491677.32
+        },
+        {
+          "date": "2026-10-16",
+          "supply": 2007009.49
+        },
+        {
+          "date": "2026-11-02",
+          "supply": 1930018.0
+        },
+        {
+          "date": "2026-11-03",
+          "supply": 1958060.7
+        },
+        {
+          "date": "2026-11-04",
+          "supply": 1947339.09
+        },
+        {
+          "date": "2026-11-05",
+          "supply": 1727597.8
+        }
+      ],
+      "usdcv_solana_05ce0103": [
+        {
+          "date": "2025-08-04",
+          "supply": 1000005.0
+        },
+        {
+          "date": "2025-08-14",
+          "supply": 16000150.0
+        },
+        {
+          "date": "2025-09-05",
+          "supply": 27250150.0
+        },
+        {
+          "date": "2025-11-13",
+          "supply": 21350150.0
+        },
+        {
+          "date": "2026-02-10",
+          "supply": 20300150.0
+        },
+        {
+          "date": "2026-02-19",
+          "supply": 22503039.0
+        },
+        {
+          "date": "2026-03-04",
+          "supply": 20903039.0
+        },
+        {
+          "date": "2026-03-12",
+          "supply": 19803039.0
+        },
+        {
+          "date": "2026-04-13",
+          "supply": 18159297.0
+        },
+        {
+          "date": "2026-04-20",
+          "supply": 1989380.0
+        },
+        {
+          "date": "2026-07-09",
+          "supply": 1989380.0
+        },
+        {
+          "date": "2026-08-04",
+          "supply": 1989390.0
+        },
+        {
+          "date": "2026-08-10",
+          "supply": 1989380.0
+        }
+      ]
+    }
+  }
+}

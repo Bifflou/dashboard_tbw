@@ -1,0 +1,94 @@
+{
+  "description": "EURCV on the XRP Ledger. Test fixture only: never a project of the site (SPEC §11).",
+  "project": {
+    "schema_version": 1,
+    "slug": "fixture-sg-forge-xrpl",
+    "name": "Fixture SG Forge (XRPL)",
+    "image": null,
+    "created_at": "2026-11-23T14:00:00Z",
+    "updated_at": "2026-11-23T14:00:00Z",
+    "tokens": [
+      {
+        "id": "eurcv",
+        "name": "EUR CoinVertible",
+        "symbol": "EURCV",
+        "logo": null,
+        "currency": "EUR",
+        "category": "stablecoin",
+        "nav_type": null,
+        "nav_source": null,
+        "launch_date": null,
+        "lines": [
+          {
+            "id": "eurcv_xrpl_3f0c0f52",
+            "chain": "xrpl",
+            "identifier": {
+              "issuer": "rUNaS5sqRuxZz6V7rBGhoSaZiVYA3ut4UL",
+              "currency": "4555524356000000000000000000000000000000"
+            },
+            "excluded_addresses": []
+          }
+        ]
+      }
+    ]
+  },
+  "reference": {
+    "source": "soge xrpl_marketcap.json (supply only: soge's XRPL holders were an approximation, first payment received from the issuer). Its partial last day (2026-11-06) is left out.",
+    "lines": {
+      "eurcv_xrpl_3f0c0f52": [
+        {
+          "date": "2025-09-10",
+          "supply": 1.0
+        },
+        {
+          "date": "2026-05-14",
+          "supply": 10000000.0
+        },
+        {
+          "date": "2026-06-02",
+          "supply": 10000000.0
+        },
+        {
+          "date": "2026-06-21",
+          "supply": 10000000.0
+        },
+        {
+          "date": "2026-07-10",
+          "supply": 10000000.0
+        },
+        {
+          "date": "2026-07-29",
+          "supply": 10000000.0
+        },
+        {
+          "date": "2026-08-19",
+          "supply": 10000000.0
+        },
+        {
+          "date": "2026-09-07",
+          "supply": 10000000.0
+        },
+        {
+          "date": "2026-09-26",
+          "supply": 10000000.0
+        },
+        {
+          "date": "2026-10-15",
+          "supply": 10000000.0
+        },
+        {
+          "date": "2026-11-03",
+          "supply": 10000000.0
+        },
+        {
+          "date": "2026-11-04",
+          "supply": 10000000.0
+        },
+        {
+          "date": "2026-11-05",
+          "supply": 10000000.0
+        }
+      ]
+    }
+  }
+}

@@ -127,7 +127,6 @@
       "xrpl": {
         "node_urls": [
           "https://xrplcluster.com/",
-          "https://s1.ripple.com:51234/",
           "https://s2.ripple.com:51234/"
         ]
       }
@@ -142,8 +141,7 @@
         "horizon_urls": [
           "https://horizon.stellar.org",
           "https://horizon.stellar.lobstr.co"
-        ],
-        "expert_api": "https://api.stellar.expert/explorer/public"
+        ]
       }
     }
   }

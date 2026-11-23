@@ -41,6 +41,11 @@ class Adapter:
         """Current total supply read on-chain (before exclusions), for reconciliation. None if unavailable."""
         return None
 
+    def onchain_balances_raw(self) -> dict[str, int] | None:
+        """Every address balance at the same moment as onchain_supply_raw, when the chain lists them cheaply
+        (XRPL trust lines, Stellar trustlines...). None when unavailable or too expensive (EVM)."""
+        return None
+
     def non_holder_addresses(self) -> set[str]:
         """Addresses never counted as holders (e.g. the issuer on XRPL/Stellar). Excluded addresses are added by the engine."""
         return set()

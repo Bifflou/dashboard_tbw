@@ -317,9 +317,9 @@ Pas d'agrégateurs (DeFiLlama, rwa.xyz…) dans le pipeline : ils servent seulem
 | Chaîne | Historique | État actuel / rapprochement | Clé |
 |---|---|---|---|
 | Ethereum + EVM | Logs `Transfer` lus sur des **nœuds publics** (`eth_getLogs`, fenêtres de 10 000 blocs, nœuds « archive » pour l'historique). Secours fenêtre par fenêtre : Etherscan API v2 (`chainid`) | RPC public : `totalSupply` (au bloc de fin de lecture), `decimals` | `ETHERSCAN_API_KEY` (bloc de création du contrat + secours) |
-| Solana | Helius RPC (signatures + transactions parsées) | Helius `getTokenAccounts` (DAS) | `HELIUS_API_KEY` |
-| XRPL | `account_tx` sur l'émetteur (nœuds publics : xrplcluster.com, s1.ripple.com) | `gateway_balances`, `account_lines` | aucune |
-| Stellar | Horizon (opérations / effets de l'émetteur) + API stellar.expert | Horizon `/assets`, stellar.expert `/holders` | aucune |
+| Solana | RPC (Helius si clé, sinon RPC public) : signatures du mint et de chaque compte de token (y compris les comptes fermés découverts en route), puis soldes avant/après de chaque transaction, par propriétaire | `getProgramAccounts` (tous les comptes du mint, au slot de fin de lecture) + `getTokenSupply` | `HELIUS_API_KEY` (indispensable dès que le token a beaucoup de transactions) |
+| XRPL | `account_tx` sur l'émetteur, nœuds publics à historique complet (xrplcluster.com, s2.ripple.com) ; soldes lus dans les métadonnées (RippleState) | `gateway_balances` + `account_lines` au ledger de fin de lecture | aucune |
+| Stellar | Horizon : effets des comptes pouvant détenir l'actif, depuis la création de l'émetteur | Horizon `/assets` + `/accounts?asset=` | aucune |
 | NAV | Oracle Chainlink via RPC Ethereum public (lots de `getRoundData`) ; CoinGecko en secours | — | `COINGECKO_API_KEY` (seulement si utilisé) |
 | FX | Frankfurter | — | aucune |
 
@@ -339,6 +339,22 @@ Pas d'agrégateurs (DeFiLlama, rwa.xyz…) dans le pipeline : ils servent seulem
   pour les logs.
 - *2026-11-23 — soge* : son dernier point (2026-11-06) avait été écrit à 13:33 UTC, donc sur une demi-journée. Ce
   moteur ne garde que des journées UTC complètes : seul ce type de point diffère.
+- *2026-11-23 — Contrôle par adresse* : sur XRPL, Stellar et Solana, où la liste des soldes actuels est bon marché,
+  le moteur compare en plus **le solde reconstruit de chaque adresse** avec son solde on-chain (pas seulement la
+  supply totale). Un écart déclenche une seconde lecture, puis un avertissement.
+- *2026-11-23 — stellar.expert* : son API est devenue payante (HTTP 402 sur tous les endpoints). Horizon ne sait pas
+  lister les mouvements d'un actif sur tout le réseau ; le moteur lit donc les effets des comptes pouvant détenir
+  l'actif. Pour un émetteur `auth_required` (cas des actifs régulés), seuls les comptes autorisés sont lus : pour
+  EURCV, 12 comptes et ~29 000 effets depuis la création de l'émetteur (les comptes très actifs sont des trustlines
+  non autorisées, ignorées). Les RPC Stellar publics ne gardent que 7 jours d'événements : inutilisables pour
+  l'historique.
+- *2026-11-23 — XRPL / Stellar vs soge* : supply exacte sur tous les jours de référence. Les holders diffèrent par
+  méthode : soge comptait sur XRPL les adresses ayant reçu de l'émetteur (même revendues) et sur Stellar les seuls
+  comptes vus dans les opérations de l'émetteur et de l'admin ; ce moteur compte les soldes > 0, vérifiés adresse
+  par adresse.
+- *2026-11-23 — Solana* : le RPC public refuse les lectures en volume (HTTP 429 dès quelques requêtes groupées).
+  EURCV sur Solana compte ~25 000 transactions (pools de DEX) : l'initialisation passe par Helius et prend de
+  l'ordre de l'heure ; les mises à jour quotidiennes sont légères.
 
 Les clés vivent **uniquement** dans les secrets GitHub Actions du dépôt. Jamais dans le front, la config ou les JSON publiés.
 
@@ -427,6 +443,8 @@ de méthode près (ceux-ci sont documentés).
 |---|---|---|
 | R1 | **Historique des holders sur Solana** : rejouer tous les transferts coûte plus cher que les seuls mint/burn. Méthode à valider sur EURCV / USDCV à l'étape 3. | à valider |
 | R2 | Ajouter une chaîne EVM demande des **nœuds publics « archive »** acceptant `eth_getLogs` par grandes fenêtres (à trouver et tester par chaîne, comme pour Ethereum) ; Etherscan v2 reste le secours si le plan gratuit couvre la chaîne. | à vérifier quand on ajoutera une chaîne EVM |
+| R5 | **Stellar** : un compte qui a détenu l'actif puis a perdu son autorisation n'est pas retrouvé (sa période de détention manque à l'historique des holders). Un actif sans `auth_required` détenu par des comptes très actifs peut rendre l'initialisation très longue (lecture de tous leurs effets). | limite connue du MVP |
+| R6 | **Solana** : un token très actif (pools de DEX) demande une transaction lue par mouvement ; l'initialisation peut durer plus d'une heure avec le plan gratuit Helius. | limite connue du MVP |
 | R4 | Les nœuds publics peuvent changer leurs limites sans prévenir. Le secours Etherscan et le rapprochement on-chain limitent le risque ; les erreurs de nœuds sont visibles dans le check moteur. | à surveiller |
 | R3 | Taille du dépôt : les fichiers d'état grossissent avec le nombre de holders. OK pour des tokens à quelques milliers de holders ; à surveiller. | à surveiller |
 | D1 | Langue de l'interface : **anglais** (cf. §5). | décidé le 2026-11-23 |

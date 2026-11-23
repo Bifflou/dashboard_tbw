@@ -66,12 +66,13 @@ def compare_reference(series: dict, reference: list[dict]) -> tuple[str, str]:
         if diff > worst_supply:
             worst_supply = diff
             worst_example = f"{ref['date']}: {ours['supply']:,.2f} vs {ref['supply']:,.2f}"
-        if ours["holders"] != ref["holders"]:
+        if "holders" in ref and ours["holders"] != ref["holders"]:
             holder_diffs += 1
             worst_example += f" | holders {ref['date']}: {ours['holders']} vs {ref['holders']}"
     level = "notice" if worst_supply <= SUPPLY_TOLERANCE_PCT and holder_diffs == 0 and missing == 0 else "warning"
+    holders_checked = sum(1 for ref in reference if "holders" in ref)
     message = (f"{len(reference)} reference days: max supply diff {worst_supply:.4f}%, "
-               f"{holder_diffs} holder mismatch(es), {missing} missing day(s)")
+               f"{holder_diffs} holder mismatch(es) on {holders_checked} day(s), {missing} missing day(s)")
     if worst_example:
         message += f". Worst: {worst_example[:300]}"
     return level, message
@@ -117,6 +118,10 @@ def check_fixture(path) -> None:
         last = series["days"][-1]
         rec = result.reconciliation
         rec_text = f"on-chain {rec['onchain']:,.2f}, diff {rec['diff_pct']:.4f}%" if rec else "no on-chain value"
+        if rec and "balance_mismatches" in rec:
+            rec_text += f", {rec['balance_mismatches']} address balance mismatch(es)"
+            if rec.get("balance_example"):
+                rec_text += f" e.g. {rec['balance_example']}"
         annotate("warning" if result.state != "ok" else "notice", f"{label} init",
                  f"{len(series['days'])} days {series['first_date']} -> {series['last_date']}; "
                  f"last supply {last['supply']:,.2f}, holders {last['holders']}; {rec_text}; "

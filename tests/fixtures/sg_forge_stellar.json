@@ -1,0 +1,102 @@
+{
+  "description": "EURCV on Stellar (classic asset with auth_required, minted through its SAC). Test fixture only: never a project of the site (SPEC §11).",
+  "project": {
+    "schema_version": 1,
+    "slug": "fixture-sg-forge-stellar",
+    "name": "Fixture SG Forge (Stellar)",
+    "image": null,
+    "created_at": "2026-11-23T14:00:00Z",
+    "updated_at": "2026-11-23T14:00:00Z",
+    "tokens": [
+      {
+        "id": "eurcv",
+        "name": "EUR CoinVertible",
+        "symbol": "EURCV",
+        "logo": null,
+        "currency": "EUR",
+        "category": "stablecoin",
+        "nav_type": null,
+        "nav_source": null,
+        "launch_date": null,
+        "lines": [
+          {
+            "id": "eurcv_stellar_f284eb47",
+            "chain": "stellar",
+            "identifier": {
+              "code": "EURCV",
+              "issuer": "GCEYGIVOLAVBF2TG2RUSGTUJCIN75KEX3NGLMY4VPL4GFE5L355AXW3G"
+            },
+            "excluded_addresses": []
+          }
+        ]
+      }
+    ]
+  },
+  "reference": {
+    "source": "soge stellar_marketcap.json (supply only: soge's Stellar holders came from the issuer and admin operations only).",
+    "lines": {
+      "eurcv_stellar_f284eb47": [
+        {
+          "date": "2025-12-18",
+          "supply": 1.0
+        },
+        {
+          "date": "2025-12-22",
+          "supply": 25.0
+        },
+        {
+          "date": "2026-01-12",
+          "supply": 0.0
+        },
+        {
+          "date": "2026-02-06",
+          "supply": 1500000.0
+        },
+        {
+          "date": "2026-02-11",
+          "supply": 3091508.45
+        },
+        {
+          "date": "2026-02-16",
+          "supply": 4768392.45
+        },
+        {
+          "date": "2026-02-19",
+          "supply": 6461592.45
+        },
+        {
+          "date": "2026-02-24",
+          "supply": 10000000.0
+        },
+        {
+          "date": "2026-03-16",
+          "supply": 15000000.0
+        },
+        {
+          "date": "2026-03-24",
+          "supply": 15001100.0
+        },
+        {
+          "date": "2026-03-25",
+          "supply": 15000600.0
+        },
+        {
+          "date": "2026-03-26",
+          "supply": 15030600.0
+        },
+        {
+          "date": "2026-05-01",
+          "supply": 15030600.0
+        },
+        {
+          "date": "2026-05-13",
+          "supply": 15030600.0
+        },
+        {
+          "date": "2026-05-22",
+          "supply": 15030600.0
+        }
+      ]
+    }
+  }
+}
