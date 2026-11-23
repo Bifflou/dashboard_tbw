@@ -17,6 +17,7 @@ from .paths import line_series_file, line_state_file
 SCHEMA_VERSION = 1
 CHECKPOINT_LAG_DAYS = 3
 RECONCILIATION_TOLERANCE_PCT = 0.01
+FETCH_ATTEMPTS = 2
 
 
 class LineEngineError(RuntimeError):
@@ -58,9 +59,67 @@ def process_line(
         if not state or state.get("fingerprint") != fingerprint:
             raise LineEngineError("no saved state matching the current config: the line must be initialized")
 
+    decimals = state["decimals"] if state else adapter.decimals()
+    # A reconciliation mismatch usually means the data source dropped transfers: fetch once more before warning.
+    for attempt in range(1, FETCH_ATTEMPTS + 1):
+        checkpoint, kept_days, new_days, replay, later = _replay_from_state(
+            adapter, line, state, series_path, last_day, decimals
+        )
+        reconciliation = _reconcile(adapter, replay.total_raw, later, decimals) if reconcile else None
+        if not _mismatch(reconciliation) or attempt == FETCH_ATTEMPTS:
+            break
+        print(f"  {line['id']}: supply off by {reconciliation['diff_pct']}% on attempt {attempt}, "
+              f"fetching again", flush=True)
+
+    days = kept_days + new_days
+    now = utc_now_iso()
+    save_json(series_path, {
+        "schema_version": SCHEMA_VERSION,
+        "line_id": line["id"],
+        "token_id": token["id"],
+        "chain": line["chain"],
+        "fingerprint": fingerprint,
+        "decimals": decimals,
+        "first_date": days[0]["date"] if days else None,
+        "last_date": days[-1]["date"] if days else None,
+        "updated_at": now,
+        "days": days,
+    }, compact=True)
+    save_json(state_path, {
+        "schema_version": SCHEMA_VERSION,
+        "line_id": line["id"],
+        "fingerprint": fingerprint,
+        "decimals": decimals,
+        "checkpoint": checkpoint,
+        "holder_periods": replay.periods,
+    }, compact=True)
+
+    state_label, message = "ok", None
+    if _mismatch(reconciliation):
+        state_label = "warning"
+        message = (
+            f"reconstructed supply {reconciliation['reconstructed']:,.2f} differs from on-chain "
+            f"{reconciliation['onchain']:,.2f} ({reconciliation['diff_pct']:.4f}%)"
+        )
+    return LineResult(
+        line_id=line["id"],
+        state=state_label,
+        first_date=days[0]["date"] if days else None,
+        last_date=days[-1]["date"] if days else None,
+        days_written=len(new_days),
+        reconciliation=reconciliation,
+        message=message,
+    )
+
+
+def _replay_from_state(adapter: Adapter, line: dict, state: dict | None, series_path, last_day: date,
+                       decimals: int) -> tuple[dict, list, list, "_Replay", list[Transfer]]:
+    """Load the starting point (checkpoint or nothing), fetch the transfers and replay them up to last_day.
+
+    Returns (checkpoint to save, days kept before the checkpoint, new days, replay, transfers after last_day).
+    """
     if state and state["checkpoint"]["date"]:
         checkpoint = state["checkpoint"]
-        decimals = state["decimals"]
         cp_date: str | None = checkpoint["date"]
         position = checkpoint["position"]
         balances = {a: int(v) for a, v in checkpoint["balances"].items()}
@@ -68,7 +127,6 @@ def process_line(
         kept_days = [d for d in series["days"] if d["date"] <= cp_date]
         periods = truncate_periods(state["holder_periods"], cp_date)
     else:
-        decimals = state["decimals"] if state else adapter.decimals()
         cp_date = None
         position = adapter.start_position()
         checkpoint = {"date": None, "position": position, "supply_raw": "0", "balances": {}}
@@ -110,50 +168,11 @@ def process_line(
         new_days.append({"date": key, "supply": replay.circulating(), "holders": len(replay.holding)})
         if key == checkpoint_key:
             checkpoint = replay.snapshot(key, cursor)
+    return checkpoint, kept_days, new_days, replay, transfers[index:]
 
-    reconciliation = None
-    if reconcile:
-        reconciliation = _reconcile(adapter, replay.total_raw, transfers[index:], decimals)
 
-    days = kept_days + new_days
-    now = utc_now_iso()
-    save_json(series_path, {
-        "schema_version": SCHEMA_VERSION,
-        "line_id": line["id"],
-        "token_id": token["id"],
-        "chain": line["chain"],
-        "fingerprint": fingerprint,
-        "decimals": decimals,
-        "first_date": days[0]["date"] if days else None,
-        "last_date": days[-1]["date"] if days else None,
-        "updated_at": now,
-        "days": days,
-    }, compact=True)
-    save_json(state_path, {
-        "schema_version": SCHEMA_VERSION,
-        "line_id": line["id"],
-        "fingerprint": fingerprint,
-        "decimals": decimals,
-        "checkpoint": checkpoint,
-        "holder_periods": replay.periods,
-    }, compact=True)
-
-    state_label, message = "ok", None
-    if reconciliation and reconciliation["diff_pct"] > RECONCILIATION_TOLERANCE_PCT:
-        state_label = "warning"
-        message = (
-            f"reconstructed supply {reconciliation['reconstructed']:,.2f} differs from on-chain "
-            f"{reconciliation['onchain']:,.2f} ({reconciliation['diff_pct']:.4f}%)"
-        )
-    return LineResult(
-        line_id=line["id"],
-        state=state_label,
-        first_date=days[0]["date"] if days else None,
-        last_date=days[-1]["date"] if days else None,
-        days_written=len(new_days),
-        reconciliation=reconciliation,
-        message=message,
-    )
+def _mismatch(reconciliation: dict | None) -> bool:
+    return bool(reconciliation) and reconciliation["diff_pct"] > RECONCILIATION_TOLERANCE_PCT
 
 
 class _Replay:

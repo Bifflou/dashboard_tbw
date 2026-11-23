@@ -323,6 +323,12 @@ Pas d'agrégateurs (DeFiLlama, rwa.xyz…) dans le pipeline : ils servent seulem
 | NAV | Oracle Chainlink via RPC Ethereum public (lots de `getRoundData`) ; CoinGecko en secours | — | `COINGECKO_API_KEY` (seulement si utilisé) |
 | FX | Frankfurter | — | aucune |
 
+**Constats vérifiés :**
+- *2026-11-23 — Etherscan* : sur un long historique (EURCV, ~3 ans), la pagination `page`/`offset` de `getLogs` a
+  perdu des transferts d'un run à l'autre (écart de 3,4 % avec la supply on-chain). Le moteur interroge donc par
+  **fenêtres de blocs** qui tiennent chacune sur une seule page, s'arrête à un bloc de tête fixe et lit la supply
+  on-chain à ce même bloc. En cas d'écart au rapprochement, il refait la récupération une fois avant d'avertir.
+
 Les clés vivent **uniquement** dans les secrets GitHub Actions du dépôt. Jamais dans le front, la config ou les JSON publiés.
 
 ---
