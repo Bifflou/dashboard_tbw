@@ -18,7 +18,8 @@
   - `none` : valeur gardée telle quelle (les adresses base58 sont sensibles à la casse) ;
   - `xrpl_currency` : code à 3 caractères gardé tel quel, code hexadécimal de 40 caractères passé en majuscules.
 - `chains` : une entrée par chaîne (`name`, `family`, `logo`, URL d'explorateur, et un bloc propre à la famille :
-  `etherscan_chainid` et RPC pour l'EVM, nœuds pour XRPL…).
+  nœuds pour XRPL…). Pour l'EVM : `etherscan_chainid`, `rpc_urls` (lectures d'état), `logs_rpc` (nœuds pour
+  `eth_getLogs`, `"archive": true` s'ils servent tout l'historique) et `logs_max_range` (taille des fenêtres).
 
 Les gabarits d'URL d'explorateur utilisent les clés d'identifiant (`{address}`, `{mint}`, `{issuer}`, `{currency}`,
 `{code}`) et `{account}` pour une adresse quelconque.

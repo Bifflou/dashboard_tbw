@@ -316,7 +316,7 @@ Pas d'agrégateurs (DeFiLlama, rwa.xyz…) dans le pipeline : ils servent seulem
 
 | Chaîne | Historique | État actuel / rapprochement | Clé |
 |---|---|---|---|
-| Ethereum + EVM | Etherscan API v2 (`chainid`), logs `Transfer`. Secours : Blockscout | RPC public : `totalSupply`, `decimals`, `balanceOf` | `ETHERSCAN_API_KEY` |
+| Ethereum + EVM | Logs `Transfer` lus sur des **nœuds publics** (`eth_getLogs`, fenêtres de 10 000 blocs, nœuds « archive » pour l'historique). Secours fenêtre par fenêtre : Etherscan API v2 (`chainid`) | RPC public : `totalSupply` (au bloc de fin de lecture), `decimals` | `ETHERSCAN_API_KEY` (bloc de création du contrat + secours) |
 | Solana | Helius RPC (signatures + transactions parsées) | Helius `getTokenAccounts` (DAS) | `HELIUS_API_KEY` |
 | XRPL | `account_tx` sur l'émetteur (nœuds publics : xrplcluster.com, s1.ripple.com) | `gateway_balances`, `account_lines` | aucune |
 | Stellar | Horizon (opérations / effets de l'émetteur) + API stellar.expert | Horizon `/assets`, stellar.expert `/holders` | aucune |
@@ -328,6 +328,17 @@ Pas d'agrégateurs (DeFiLlama, rwa.xyz…) dans le pipeline : ils servent seulem
   perdu des transferts d'un run à l'autre (écart de 3,4 % avec la supply on-chain). Le moteur interroge donc par
   **fenêtres de blocs** qui tiennent chacune sur une seule page, s'arrête à un bloc de tête fixe et lit la supply
   on-chain à ce même bloc. En cas d'écart au rapprochement, il refait la récupération une fois avant d'avertir.
+- *2026-11-23 — Etherscan, suite* : même par fenêtres, une mise à jour incrémentale a encore perdu un transfert
+  (solde négatif détecté). L'historique EVM est donc lu **d'abord sur des nœuds publics**, Etherscan ne servant plus
+  qu'en secours. Un solde négatif déclenche aussi une seconde récupération avant l'échec.
+- *2026-11-23 — Nœuds publics Ethereum* : `ethereum-rpc.publicnode.com` ne sert que l'historique récent (~35 000
+  blocs) ; `gateway.tenderly.co/public/mainnet` et `rpc.mevblocker.io` servent tout l'historique par fenêtres de
+  10 000 blocs et donnent l'heure de chaque log (`blockTimestamp`). mevblocker limite le débit (HTTP 429) au-delà
+  d'environ 3 requêtes/s : les fenêtres sont réparties entre les nœuds et espacées. Résultat vérifié : EURCV
+  (460 024 transferts, 806 fenêtres) et USDCV exacts face à soge et à la supply on-chain, sans aucun appel Etherscan
+  pour les logs.
+- *2026-11-23 — soge* : son dernier point (2026-11-06) avait été écrit à 13:33 UTC, donc sur une demi-journée. Ce
+  moteur ne garde que des journées UTC complètes : seul ce type de point diffère.
 
 Les clés vivent **uniquement** dans les secrets GitHub Actions du dépôt. Jamais dans le front, la config ou les JSON publiés.
 
@@ -415,7 +426,8 @@ de méthode près (ceux-ci sont documentés).
 | # | Sujet | Statut |
 |---|---|---|
 | R1 | **Historique des holders sur Solana** : rejouer tous les transferts coûte plus cher que les seuls mint/burn. Méthode à valider sur EURCV / USDCV à l'étape 3. | à valider |
-| R2 | Chaînes EVM couvertes par le plan gratuit Etherscan v2 : à vérifier par chaîne, sinon Blockscout. | à vérifier quand on ajoutera une chaîne EVM |
+| R2 | Ajouter une chaîne EVM demande des **nœuds publics « archive »** acceptant `eth_getLogs` par grandes fenêtres (à trouver et tester par chaîne, comme pour Ethereum) ; Etherscan v2 reste le secours si le plan gratuit couvre la chaîne. | à vérifier quand on ajoutera une chaîne EVM |
+| R4 | Les nœuds publics peuvent changer leurs limites sans prévenir. Le secours Etherscan et le rapprochement on-chain limitent le risque ; les erreurs de nœuds sont visibles dans le check moteur. | à surveiller |
 | R3 | Taille du dépôt : les fichiers d'état grossissent avec le nombre de holders. OK pour des tokens à quelques milliers de holders ; à surveiller. | à surveiller |
 | D1 | Langue de l'interface : **anglais** (cf. §5). | décidé le 2026-11-23 |
 | D2 | Git : une seule branche `main`, pas de PR, **toujours `pull --rebase` avant `push`** (cf. CLAUDE.md). | décidé le 2026-11-23 |
