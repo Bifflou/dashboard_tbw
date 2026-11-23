@@ -1,0 +1,54 @@
+name: Daily update
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Shared with init.yml: data-writing runs execute one after the other, never in parallel.
+concurrency:
+  group: data-writer
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    env:
+      PIPELINE_WORKFLOW: daily
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Update FX rates (global)
+        continue-on-error: true
+        run: python -m scripts.fetch_fx
+
+      - name: Update projects
+        env:
+          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
+          HELIUS_API_KEY: ${{ secrets.HELIUS_API_KEY }}
+          COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
+        run: python -m scripts.run_daily
+
+      - name: Build project index
+        run: python -m scripts.build_index
+
+      - name: Commit and push data
+        run: bash scripts/commit_data.sh "chore(data): daily update $(date -u '+%Y-%m-%d')"
+
+      - name: Notify Discord
+        if: always()
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: python -m scripts.notify --job-status "${{ job.status }}" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

@@ -1,0 +1,144 @@
+{
+  "schema_version": 1,
+  "families": {
+    "evm": {
+      "identifier": [
+        {
+          "key": "address",
+          "label": "Contract address",
+          "placeholder": "0x…",
+          "pattern": "^0x[0-9a-fA-F]{40}$",
+          "normalize": "lower"
+        }
+      ],
+      "excluded_address": {
+        "label": "Wallet address",
+        "placeholder": "0x…",
+        "pattern": "^0x[0-9a-fA-F]{40}$",
+        "normalize": "lower"
+      }
+    },
+    "solana": {
+      "identifier": [
+        {
+          "key": "mint",
+          "label": "Mint address",
+          "placeholder": "Base58 mint address",
+          "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$",
+          "normalize": "none"
+        }
+      ],
+      "excluded_address": {
+        "label": "Owner wallet address",
+        "placeholder": "Base58 wallet address (not the token account)",
+        "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$",
+        "normalize": "none"
+      }
+    },
+    "xrpl": {
+      "identifier": [
+        {
+          "key": "issuer",
+          "label": "Issuer address",
+          "placeholder": "r…",
+          "pattern": "^r[1-9A-HJ-NP-Za-km-z]{24,34}$",
+          "normalize": "none"
+        },
+        {
+          "key": "currency",
+          "label": "Currency code",
+          "placeholder": "3 characters or 40 hex characters",
+          "pattern": "^([A-Za-z0-9]{3}|[0-9A-Fa-f]{40})$",
+          "normalize": "xrpl_currency"
+        }
+      ],
+      "excluded_address": {
+        "label": "Account address",
+        "placeholder": "r…",
+        "pattern": "^r[1-9A-HJ-NP-Za-km-z]{24,34}$",
+        "normalize": "none"
+      }
+    },
+    "stellar": {
+      "identifier": [
+        {
+          "key": "code",
+          "label": "Asset code",
+          "placeholder": "e.g. EURCV",
+          "pattern": "^[A-Za-z0-9]{1,12}$",
+          "normalize": "none"
+        },
+        {
+          "key": "issuer",
+          "label": "Issuer address",
+          "placeholder": "G…",
+          "pattern": "^G[A-Z2-7]{55}$",
+          "normalize": "upper"
+        }
+      ],
+      "excluded_address": {
+        "label": "Account address",
+        "placeholder": "G…",
+        "pattern": "^G[A-Z2-7]{55}$",
+        "normalize": "upper"
+      }
+    }
+  },
+  "chains": {
+    "ethereum": {
+      "name": "Ethereum",
+      "family": "evm",
+      "logo": "assets/chains/ethereum.png",
+      "explorer_token_url": "https://etherscan.io/token/{address}",
+      "explorer_address_url": "https://etherscan.io/address/{account}",
+      "evm": {
+        "etherscan_chainid": 1,
+        "rpc_urls": [
+          "https://ethereum-rpc.publicnode.com",
+          "https://ethereum.publicnode.com",
+          "https://rpc.mevblocker.io",
+          "https://eth-mainnet.public.blastapi.io"
+        ],
+        "blockscout_api": "https://eth.blockscout.com/api"
+      }
+    },
+    "solana": {
+      "name": "Solana",
+      "family": "solana",
+      "logo": "assets/chains/solana.png",
+      "explorer_token_url": "https://solscan.io/token/{mint}",
+      "explorer_address_url": "https://solscan.io/account/{account}",
+      "solana": {
+        "helius_rpc_url": "https://mainnet.helius-rpc.com/"
+      }
+    },
+    "xrpl": {
+      "name": "XRP Ledger",
+      "family": "xrpl",
+      "logo": "assets/chains/xrpl.png",
+      "explorer_token_url": "https://xrpscan.com/account/{issuer}",
+      "explorer_address_url": "https://xrpscan.com/account/{account}",
+      "xrpl": {
+        "node_urls": [
+          "https://xrplcluster.com/",
+          "https://s1.ripple.com:51234/",
+          "https://s2.ripple.com:51234/"
+        ]
+      }
+    },
+    "stellar": {
+      "name": "Stellar",
+      "family": "stellar",
+      "logo": "assets/chains/stellar.png",
+      "explorer_token_url": "https://stellar.expert/explorer/public/asset/{code}-{issuer}",
+      "explorer_address_url": "https://stellar.expert/explorer/public/account/{account}",
+      "stellar": {
+        "horizon_urls": [
+          "https://horizon.stellar.org",
+          "https://horizon.stellar.lobstr.co"
+        ],
+        "expert_api": "https://api.stellar.expert/explorer/public"
+      }
+    }
+  }
+}

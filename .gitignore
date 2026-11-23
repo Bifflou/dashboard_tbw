@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Pipeline run report and local test output (never committed)
+.run/
+tests/output/
+
+# Local secrets and editor settings
+.env
+.claude/settings.local.json
+.DS_Store
+Thumbs.db

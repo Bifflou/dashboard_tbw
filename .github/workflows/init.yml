@@ -1,0 +1,63 @@
+name: Initialize data
+
+# Triggered by the admin's "Initialize data" button. Every pending line of every project is processed,
+# not only the project given as hint (see scripts/run_init.py).
+run-name: "Init ${{ inputs.project || 'all pending' }} [${{ inputs.request_id || 'manual' }}]"
+
+on:
+  workflow_dispatch:
+    inputs:
+      project:
+        description: 'Project slug that triggered the run (used in the notification)'
+        required: false
+        default: ''
+      request_id:
+        description: 'Random id set by the admin to find this run'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+# Shared with daily.yml: data-writing runs execute one after the other, never in parallel.
+concurrency:
+  group: data-writer
+  cancel-in-progress: false
+
+jobs:
+  init:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    env:
+      PIPELINE_WORKFLOW: init
+      PIPELINE_PROJECT_HINT: ${{ inputs.project }}
+      PIPELINE_REQUEST_ID: ${{ inputs.request_id }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Initialize pending lines
+        env:
+          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
+          HELIUS_API_KEY: ${{ secrets.HELIUS_API_KEY }}
+          COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
+        run: python -m scripts.run_init
+
+      - name: Build project index
+        run: python -m scripts.build_index
+
+      - name: Commit and push data
+        run: bash scripts/commit_data.sh "chore(data): initialize ${{ inputs.project || 'pending lines' }}"
+
+      - name: Notify Discord
+        if: always()
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: python -m scripts.notify --job-status "${{ job.status }}" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
