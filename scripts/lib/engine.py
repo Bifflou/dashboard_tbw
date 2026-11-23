@@ -24,6 +24,10 @@ class LineEngineError(RuntimeError):
     pass
 
 
+class MissingTransfersError(LineEngineError):
+    """The replay found an impossible balance: the data source dropped transfers."""
+
+
 @dataclass
 class LineResult:
     line_id: str
@@ -60,11 +64,18 @@ def process_line(
             raise LineEngineError("no saved state matching the current config: the line must be initialized")
 
     decimals = state["decimals"] if state else adapter.decimals()
-    # A reconciliation mismatch usually means the data source dropped transfers: fetch once more before warning.
+    # A negative balance or a reconciliation mismatch usually means the data source dropped transfers:
+    # fetch once more before failing (negative balance) or warning (mismatch).
     for attempt in range(1, FETCH_ATTEMPTS + 1):
-        checkpoint, kept_days, new_days, replay, later = _replay_from_state(
-            adapter, line, state, series_path, last_day, decimals
-        )
+        try:
+            checkpoint, kept_days, new_days, replay, later = _replay_from_state(
+                adapter, line, state, series_path, last_day, decimals
+            )
+        except MissingTransfersError as exc:
+            if attempt == FETCH_ATTEMPTS:
+                raise
+            print(f"  {line['id']}: {exc} (attempt {attempt}), fetching again", flush=True)
+            continue
         reconciliation = _reconcile(adapter, replay.total_raw, later, decimals) if reconcile else None
         if not _mismatch(reconciliation) or attempt == FETCH_ATTEMPTS:
             break
@@ -208,7 +219,7 @@ class _Replay:
     def _move(self, address: str, delta: int, day: str) -> None:
         balance = self.balances.get(address, 0) + delta
         if balance < 0:
-            raise LineEngineError(f"negative balance for {address} on {day}: transfers are missing")
+            raise MissingTransfersError(f"negative balance for {address} on {day}: transfers are missing")
         if balance:
             self.balances[address] = balance
         else:

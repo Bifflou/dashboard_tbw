@@ -99,6 +99,11 @@
           "https://rpc.mevblocker.io",
           "https://eth-mainnet.public.blastapi.io"
         ],
+        "logs_rpc": [
+          { "url": "https://ethereum-rpc.publicnode.com", "archive": false },
+          { "url": "https://rpc.mevblocker.io", "archive": true }
+        ],
+        "logs_max_range": 10000,
         "blockscout_api": "https://eth.blockscout.com/api"
       }
     },
